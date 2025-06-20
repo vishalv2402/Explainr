@@ -21,7 +21,7 @@ app = Flask(__name__)
 
 # Configuration
 class Config:
-    OPENAI_API_KEY = os.environ.get('ExplainrOpenAIKey')
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     MAX_TOPIC_LENGTH = 200
     RATE_LIMIT_REQUESTS = 10  # requests per minute
     OPENAI_MODEL = "gpt-3.5-turbo"

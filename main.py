@@ -1,14 +1,15 @@
 from flask import Flask, request, render_template_string
-import openai
 import os
 import sqlite3
 from datetime import datetime
+from openai import OpenAI
 
 # Initialize Flask
 app = Flask(__name__)
 
-# Set your OpenAI API key from environment variable
-openai.api_key = os.environ.get('ExplainrOpenAIKey', 'your-api-key-here')
+# Initialize OpenAI client with API key
+openai_api_key = os.environ.get('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY')
+client = OpenAI(api_key=openai_api_key)
 
 # Database setup (SQLite file-based)
 DB_PATH = 'search_history.db'
@@ -74,7 +75,6 @@ HTML_TEMPLATE = '''
 @app.route("/", methods=["GET", "POST"])
 def explain():
     result = None
-    # On form submit
     if request.method == "POST":
         topic = request.form['topic']
         prompt = f"""
@@ -84,7 +84,7 @@ Explain {topic} in 3 levels:
 3. Like I'm 30
 """
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a friendly explainer bot."},
@@ -94,8 +94,8 @@ Explain {topic} in 3 levels:
             result = response.choices[0].message.content.strip()
             # Save to history
             cursor.execute(
-                "INSERT INTO searches (topic, result, created_at) VALUES (?, ?, ?)"
-                , (topic, result, datetime.utcnow())
+                "INSERT INTO searches (topic, result, created_at) VALUES (?, ?, ?)",
+                (topic, result, datetime.utcnow())
             )
             conn.commit()
         except Exception as e:
@@ -111,6 +111,5 @@ Explain {topic} in 3 levels:
     return render_template_string(HTML_TEMPLATE, result=result, history=history)
 
 if __name__ == "__main__":
-    # Use port from environment or default 81
     port = int(os.environ.get('PORT', 81))
     app.run(host='0.0.0.0', port=port)

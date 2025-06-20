@@ -2,7 +2,7 @@ from flask import Flask, request, render_template_string
 import os
 import sqlite3
 from datetime import datetime
-from openai import OpenAI
+import openai
 import logging
 from contextlib import contextmanager
 
@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 # Initialize Flask
 app = Flask(__name__)
 
-# Initialize OpenAI client with API key
+# Initialize OpenAI with API key (older library style)
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 if not openai_api_key:
     logger.error("OPENAI_API_KEY environment variable not set")
     raise ValueError("OpenAI API key is required")
 
-client = OpenAI(api_key=openai_api_key)
+openai.api_key = openai_api_key
 
 # Database setup (SQLite file-based)
 DB_PATH = 'search_history.db'
@@ -80,7 +80,7 @@ def validate_topic(topic):
     return topic
 
 def get_explanation(topic):
-    """Get explanation from OpenAI API."""
+    """Get explanation from OpenAI API using older library syntax."""
     prompt = f"""
 Explain {topic} in 3 levels:
 1. Like I'm 5 (simple, basic concepts)
@@ -91,7 +91,7 @@ Keep each explanation concise but informative.
 """
     
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a friendly and knowledgeable explainer bot. Provide clear, accurate explanations at different complexity levels."},

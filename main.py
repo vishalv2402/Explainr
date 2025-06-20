@@ -8,7 +8,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Set your OpenAI API key from environment variable
-openai.api_key = os.environ.get('ExplainrOpenAIKey', 'YOUR_OPENAI_API_KEY')
+openai.api_key = os.environ.get('ExplainrOpenAIKey', 'your-api-key-here')
 
 # Database setup (SQLite file-based)
 DB_PATH = 'search_history.db'

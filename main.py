@@ -2,14 +2,14 @@ from flask import Flask, request, render_template_string
 import os
 import sqlite3
 from datetime import datetime
-from openai import OpenAI
+import openai
 
 # Initialize Flask
 app = Flask(__name__)
 
 # Initialize OpenAI client with API key
 openai_api_key = os.environ.get('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY')
-client = OpenAI(api_key=openai_api_key)
+
 
 # Database setup (SQLite file-based)
 DB_PATH = 'search_history.db'
@@ -84,7 +84,7 @@ Explain {topic} in 3 levels:
 3. Like I'm 30
 """
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a friendly explainer bot."},

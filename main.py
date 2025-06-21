@@ -1,4 +1,3 @@
-Latest Working Code as of 21-02-2025:
 from flask import Flask, request, render_template_string, make_response, jsonify
 import openai
 import os
@@ -22,20 +21,22 @@ app = Flask(__name__)
 
 # Configuration
 class Config:
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    # Check for both variable names to ensure compatibility
+    OPENAI_API_KEY = os.environ.get('ExplainrOpenAIKey') or os.environ.get('OPENAI_API_KEY')
     MAX_TOPIC_LENGTH = 200
-    RATE_LIMIT_REQUESTS = 10  # requests per minute
+    RATE_LIMIT_REQUESTS = 10
     OPENAI_MODEL = "gpt-3.5-turbo"
     MAX_RETRIES = 3
     TIMEOUT = 30
 
 config = Config()
 
-# Initialize OpenAI
-if config.OPENAI_API_KEY and config.OPENAI_API_KEY != 'your-api-key-here':
-    openai.api_key = config.OPENAI_API_KEY
+# Initialize OpenAI with better error handling
+if not config.OPENAI_API_KEY or config.OPENAI_API_KEY == 'your-api-key-here':
+    logger.error("OpenAI API key not configured. Please set either ExplainrOpenAIKey or OPENAI_API_KEY environment variable.")
 else:
-    logger.error("OpenAI API key not properly configured")
+    openai.api_key = config.OPENAI_API_KEY
+    logger.info("OpenAI API key configured successfully")
 
 # Rate limiting storage (in production, use Redis)
 request_timestamps = []
@@ -172,419 +173,607 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Explainr - Understanding Made Simple</title>
-    <meta name="description" content="Understand complex concepts explained at different levels - from beginner to expert">
+    <title>Explainr - AI-Powered Learning Revolution</title>
+    <meta name="description" content="Transform complex concepts into crystal-clear understanding with AI-powered explanations">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-black: #0A0A0A;
+            --secondary-black: #1A1A1A;
+            --charcoal: #2D2D2D;
+            --warm-grey: #8B8B8B;
+            --light-grey: #E8E8E8;
+            --cream: #FEFCF8;
+            --warm-white: #FDFDFD;
+            --beige: #F7F5F2;
+            --accent-gold: #D4AF37;
+            --accent-warm: #F5E6D3;
+            --border-light: #F0F0F0;
+            --border-subtle: #E5E5E5;
+            --shadow-soft: rgba(0, 0, 0, 0.03);
+            --shadow-medium: rgba(0, 0, 0, 0.08);
+            --shadow-strong: rgba(0, 0, 0, 0.12);
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
         
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--beige) 100%);
+            color: var(--primary-black);
+            line-height: 1.6;
             min-height: 100vh;
-            padding: 20px;
-            color: #333;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 3rem auto;
+            padding: 0;
+            background: var(--warm-white);
+            border-radius: 24px;
+            box-shadow: 
+                0 32px 64px var(--shadow-soft),
+                0 16px 32px var(--shadow-medium),
+                0 0 0 1px var(--border-light);
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 4rem 3rem 3rem;
+            background: linear-gradient(135deg, var(--warm-white) 0%, var(--cream) 100%);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--accent-gold) 50%, transparent 100%);
+        }
+
+        .brand-name {
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .brand-name .explain {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4rem;
+            font-weight: 300;
+            color: var(--charcoal);
+            letter-spacing: -0.04em;
+        }
+
+        .brand-name .r {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4rem;
+            font-weight: 300;
+            color: var(--warm-white);
+            background: var(--primary-black);
+            padding: 0 0.3em;
+            border-radius: 8px;
+            margin-left: -0.05em;
+        }
+
+        .subtitle {
+            color: var(--warm-grey);
+            font-size: 1.1rem;
+            font-weight: 400;
+            max-width: 600px;
+            margin: 0 auto;
             line-height: 1.6;
         }
-        
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+
+        .form-section {
+            padding: 3rem;
         }
-        
-        h1 { 
-            text-align: center; 
-            font-size: 3rem; 
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #64748b, #334155);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+
+        .input-group {
+            margin-bottom: 2.5rem;
         }
-        
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 40px;
-            font-size: 1.1rem;
-        }
-        
-        .form-container {
-            background: #f8fafc;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        label { 
-            font-weight: 600; 
-            color: #374151; 
-            margin-bottom: 10px; 
+
+        .input-label {
             display: block;
-            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--primary-black);
+            margin-bottom: 1rem;
+            font-size: 1rem;
         }
-        
-        input[type=text] { 
-            width: 100%; 
-            padding: 15px 20px; 
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 16px;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        input[type=text]:focus {
-            outline: none;
-            border-color: #64748b;
-            box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.1);
-            transform: translateY(-2px);
-        }
-        
-        .radio-group { 
-            margin: 20px 0; 
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .radio-group > label:first-child { 
-            margin-bottom: 15px; 
-            font-weight: 600;
-            color: #374151;
-        }
-        
-        .radio-group label { 
-            display: flex; 
-            align-items: center; 
-            margin: 10px 0; 
-            cursor: pointer;
-            padding: 10px;
-            border-radius: 8px;
-            transition: background 0.2s ease;
-        }
-        
-        .radio-group label:hover {
-            background: #f3f4f6;
-        }
-        
-        .radio-group input[type=radio] {
-            margin-right: 12px;
-            transform: scale(1.2);
-            accent-color: #64748b;
-        }
-        
-        button { 
+
+        .input-field {
             width: 100%;
-            padding: 15px 30px; 
-            background: linear-gradient(45deg, #64748b, #475569);
-            color: white; 
-            border: none; 
-            border-radius: 12px; 
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer; 
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(100, 116, 139, 0.3);
+            padding: 1.25rem 1.5rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            font-weight: 400;
+            transition: all 0.2s ease;
+            background: var(--warm-white);
+            color: var(--primary-black);
         }
-        
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--charcoal);
+            box-shadow: 0 0 0 3px rgba(45, 45, 45, 0.1);
         }
-        
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+
+        .input-field::placeholder {
+            color: var(--warm-grey);
         }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-            color: #64748b;
+
+        .learning-style-group {
+            background: var(--beige);
+            padding: 2rem;
+            border-radius: 16px;
+            margin: 2rem 0;
         }
-        
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #64748b;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+
+        .learning-style-label {
+            display: block;
+            font-weight: 500;
+            color: var(--primary-black);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .radio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
         }
-        
-        .result { 
-            margin-top: 30px; 
-            white-space: pre-wrap; 
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            padding: 30px; 
-            border-radius: 15px; 
-            border: 1px solid #cbd5e1;
+
+        .radio-card {
             position: relative;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            background: var(--warm-white);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
-        
-        .result strong {
-            color: #1e293b;
+
+        .radio-card:hover {
+            border-color: var(--charcoal);
+            box-shadow: 0 4px 12px var(--shadow-soft);
+        }
+
+        .radio-card input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: var(--primary-black);
+        }
+
+        .radio-card.selected {
+            border-color: var(--primary-black);
+            background: var(--primary-black);
+            color: var(--warm-white);
+        }
+
+        .radio-card .icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
+
+        .radio-card.selected .icon {
+            opacity: 1;
+        }
+
+        .radio-text {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 1.25rem 2rem;
+            background: var(--primary-black);
+            color: var(--warm-white);
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            background: var(--charcoal);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--shadow-medium);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .result-section {
+            background: var(--warm-white);
+            padding: 3rem;
+            border-top: 1px solid var(--border-light);
+            position: relative;
+        }
+
+        .result-content {
+            line-height: 1.8;
+            color: var(--primary-black);
+        }
+
+        .result-content h2 {
+            color: var(--primary-black);
+            margin: 2rem 0 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .result-content h3 {
+            color: var(--charcoal);
+            margin: 1.5rem 0 0.75rem;
             font-size: 1.2rem;
+            font-weight: 500;
         }
-        
-        .error {
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border-color: #fca5a5;
-            color: #dc2626;
+
+        .result-content p {
+            margin-bottom: 1rem;
+            color: var(--primary-black);
         }
-        
+
+        .result-content strong {
+            font-weight: 600;
+            color: var(--primary-black);
+        }
+
         .export-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            width: auto;
-            padding: 8px 16px;
-            font-size: 14px;
-            background: linear-gradient(45deg, #6b7280, #4b5563);
+            top: 2rem;
+            right: 3rem;
+            background: var(--charcoal);
+            color: var(--warm-white);
+            border: none;
+            padding: 0.75rem 1.5rem;
             border-radius: 8px;
-        }
-        
-        .recommendations { 
-            margin-top: 25px; 
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            padding: 25px; 
-            border-radius: 15px; 
-            border: 1px solid #cbd5e1;
-        }
-        
-        .recommendations h3 { 
-            margin-bottom: 15px; 
-            color: #334155; 
-            font-size: 1.3rem;
-        }
-        
-        .topic-suggestion { 
-            display: inline-block; 
-            background: linear-gradient(45deg, #64748b, #475569);
-            color: white; 
-            padding: 8px 16px; 
-            margin: 5px; 
-            border-radius: 20px; 
-            text-decoration: none; 
-            font-size: 14px; 
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
-        }
-        
-        .topic-suggestion:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(100, 116, 139, 0.4);
-            color: white;
-            text-decoration: none;
-        }
-        
-        .followup-questions { margin-top: 15px; }
-        
-        .followup-question { 
-            display: block; 
-            background: rgba(255, 255, 255, 0.8);
-            padding: 15px 20px; 
-            margin: 10px 0; 
-            border-radius: 12px; 
-            text-decoration: none; 
-            color: #334155; 
-            border: 1px solid #cbd5e1;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            cursor: pointer;
-        }
-        
-        .followup-question:hover { 
-            background: rgba(255, 255, 255, 0.95);
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            color: #334155;
-            text-decoration: none;
-        }
-        
-        .suggestions-section { 
-            margin-top: 30px; 
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
-            padding: 25px; 
-            border-radius: 15px; 
-            border: 1px solid #cbd5e1;
-        }
-        
-        .suggestions-section h3 { 
-            margin-bottom: 20px; 
-            color: #334155; 
-            font-size: 1.3rem;
-            text-align: center;
-        }
-        
-        .suggestions-grid {
+            transition: all 0.2s ease;
             display: flex;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-btn:hover {
+            background: var(--primary-black);
+        }
+
+        .suggestions-section {
+            background: var(--beige);
+            padding: 3rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .suggestions-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-black);
+            margin-bottom: 1.5rem;
+        }
+
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .topic-card {
+            background: var(--warm-white);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: var(--primary-black);
+        }
+
+        .topic-card:hover {
+            border-color: var(--charcoal);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--shadow-soft);
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
             justify-content: center;
-            gap: 10px;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .loading-content {
+            text-align: center;
+            padding: 2rem;
         }
-        
-        .form-container, .result, .recommendations, .suggestions-section {
-            animation: fadeIn 0.6s ease-out;
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--light-grey);
+            border-top-color: var(--primary-black);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
         }
-        
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
+
+        .loading-text {
+            color: var(--charcoal);
+            font-weight: 500;
         }
-        
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
-            .container { padding: 20px; }
-            h1 { font-size: 2.5rem; }
-            input[type=text] { padding: 12px 16px; }
-            button { padding: 12px 24px; font-size: 16px; }
-            .export-btn { position: static; margin: 10px 0 0 0; width: 100%; }
+            .container {
+                margin: 1rem;
+                border-radius: 16px;
+            }
+
+            .header {
+                padding: 3rem 2rem 2rem;
+            }
+
+            .brand-name .explain,
+            .brand-name .r {
+                font-size: 3rem;
+            }
+
+            .form-section {
+                padding: 2rem;
+            }
+
+            .radio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .export-btn {
+                position: static;
+                margin-bottom: 2rem;
+                width: 100%;
+            }
+
+            .suggestions-section {
+                padding: 2rem;
+            }
+
+            .topics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧠 Explainr.AI</h1>
-        <p class="subtitle">Understanding complex concepts made simple, one level at a time</p>
-        
+        <div class="header">
+            <div class="brand-name">
+                <span class="explain">Explai</span><span class="r">r</span>
+            </div>
+            <p class="subtitle">Transform complex concepts into crystal-clear understanding with AI-powered explanations</p>
+        </div>
+
         {% if not result %}
         <div class="suggestions-section">
-            <h3>💡 Popular Topics to Explore</h3>
-            <div class="suggestions-grid">
-                <span class="topic-suggestion" onclick="fillTopic('Quantum Computing')" tabindex="0" role="button" aria-label="Explore Quantum Computing">Quantum Computing</span>
-                <span class="topic-suggestion" onclick="fillTopic('Machine Learning')" tabindex="0" role="button" aria-label="Explore Machine Learning">Machine Learning</span>
-                <span class="topic-suggestion" onclick="fillTopic('Blockchain')" tabindex="0" role="button" aria-label="Explore Blockchain">Blockchain</span>
-                <span class="topic-suggestion" onclick="fillTopic('Climate Change')" tabindex="0" role="button" aria-label="Explore Climate Change">Climate Change</span>
-                <span class="topic-suggestion" onclick="fillTopic('DNA')" tabindex="0" role="button" aria-label="Explore DNA">DNA</span>
-                <span class="topic-suggestion" onclick="fillTopic('Black Holes')" tabindex="0" role="button" aria-label="Explore Black Holes">Black Holes</span>
-                <span class="topic-suggestion" onclick="fillTopic('Cryptocurrency')" tabindex="0" role="button" aria-label="Explore Cryptocurrency">Cryptocurrency</span>
-                <span class="topic-suggestion" onclick="fillTopic('Photosynthesis')" tabindex="0" role="button" aria-label="Explore Photosynthesis">Photosynthesis</span>
-                <span class="topic-suggestion" onclick="fillTopic('Artificial Intelligence')" tabindex="0" role="button" aria-label="Explore Artificial Intelligence">Artificial Intelligence</span>
-                <span class="topic-suggestion" onclick="fillTopic('The Stock Market')" tabindex="0" role="button" aria-label="Explore Stock Market">Stock Market</span>
+            <h3 class="suggestions-title">Popular Topics</h3>
+            <div class="topics-grid">
+                <div class="topic-card" onclick="fillTopic('Quantum Computing')" tabindex="0" role="button">Quantum Computing</div>
+                <div class="topic-card" onclick="fillTopic('Machine Learning')" tabindex="0" role="button">Machine Learning</div>
+                <div class="topic-card" onclick="fillTopic('Blockchain')" tabindex="0" role="button">Blockchain</div>
+                <div class="topic-card" onclick="fillTopic('Climate Change')" tabindex="0" role="button">Climate Change</div>
+                <div class="topic-card" onclick="fillTopic('DNA')" tabindex="0" role="button">DNA</div>
+                <div class="topic-card" onclick="fillTopic('Black Holes')" tabindex="0" role="button">Black Holes</div>
+                <div class="topic-card" onclick="fillTopic('Cryptocurrency')" tabindex="0" role="button">Cryptocurrency</div>
+                <div class="topic-card" onclick="fillTopic('Artificial Intelligence')" tabindex="0" role="button">Artificial Intelligence</div>
             </div>
         </div>
         {% endif %}
-        
-        <div class="form-container">
-            <form method="post" id="explainForm" onsubmit="showLoading()">
-                <label for="topic">What do you want explained?</label>
-                <input type="text" id="topic" name="topic" placeholder="Enter any topic you're curious about..." required maxlength="200" 
-                       value="{{ request.form.get('topic', '') if request.form.get('topic') else '' }}">
-                
-                <div class="radio-group">
-                    <label>Choose your explanation style:</label>
-                    <label><input type="radio" name="explanation_type" value="example" 
-                           {{ 'checked' if request.form.get('explanation_type') == 'example' or not request.form.get('explanation_type') else '' }}> 
-                           ✨ Explain with examples</label>
-                    <label><input type="radio" name="explanation_type" value="analogy"
-                           {{ 'checked' if request.form.get('explanation_type') == 'analogy' else '' }}> 
-                           🔗 Explain with analogies</label>
+
+        <div class="form-section">
+            <form method="post" id="explainForm">
+                <div class="input-group">
+                    <label class="input-label" for="topic">What would you like to learn about?</label>
+                    <input type="text" 
+                           id="topic" 
+                           name="topic" 
+                           class="input-field"
+                           placeholder="Enter any topic, concept, or idea..." 
+                           required 
+                           maxlength="200" 
+                           value="{{ request.form.get('topic', '') if request.form.get('topic') else '' }}">
                 </div>
-                
-                <button type="submit" id="submitBtn">🚀 Explain This Topic</button>
+
+                <div class="learning-style-group">
+                    <label class="learning-style-label">Choose your learning style:</label>
+                    <div class="radio-grid">
+                        <label class="radio-card" for="example">
+                            <input type="radio" 
+                                   id="example"
+                                   name="explanation_type" 
+                                   value="example" 
+                                   {{ 'checked' if request.form.get('explanation_type') == 'example' or not request.form.get('explanation_type') else '' }}>
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4l3 3V8l-3 3Z"/>
+                                <path d="M22 9 12 19l-3-3"/>
+                            </svg>
+                            <span class="radio-text">Learn through examples</span>
+                        </label>
+                        <label class="radio-card" for="analogy">
+                            <input type="radio" 
+                                   id="analogy"
+                                   name="explanation_type" 
+                                   value="analogy"
+                                   {{ 'checked' if request.form.get('explanation_type') == 'analogy' else '' }}>
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 3v6l4-4-4-4"/>
+                                <path d="M12 21v-6l4 4-4 4"/>
+                                <path d="M3 12h6l-4-4 4-4"/>
+                                <path d="M21 12h-6l4 4-4 4"/>
+                            </svg>
+                            <span class="radio-text">Learn through analogies</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-btn" id="submitBtn">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/>
+                    </svg>
+                    <span>Generate Explanation</span>
+                </button>
             </form>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Generating your explanation...</p>
-            </div>
         </div>
 
         {% if result %}
-        <div class="result {% if 'Error:' in result or 'API Error:' in result %}error{% endif %}">
+        <div class="result-section">
             {% if 'Error:' not in result and 'API Error:' not in result %}
-            <strong>📚 Explained in 3 levels:</strong>
-            <form method="post" action="/export-pdf" style="display: inline;">
+            <form method="post" action="/export-pdf">
                 <input type="hidden" name="topic" value="{{ request.form.get('topic', '') }}">
                 <input type="hidden" name="result" value="{{ result }}">
-                <button type="submit" class="export-btn">📄 Export PDF</button>
+                <button type="submit" class="export-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                        <path d="M16 13H8"/>
+                        <path d="M16 17H8"/>
+                        <path d="M10 9H8"/>
+                    </svg>
+                    Export PDF
+                </button>
             </form>
-            <br><br>
-            {% endif %}
-            {{ result }}
+            <div class="result-content">
+                {{ result|safe }}
+            </div>
         </div>
-        
+
         {% if followup_questions and 'Error:' not in result %}
-        <div class="recommendations">
-            <h3>🤔 Follow-up Questions</h3>
-            <div class="followup-questions">
+        <div class="suggestions-section">
+            <h3 class="suggestions-title">Explore Further</h3>
+            <div class="topics-grid">
                 {% for question in followup_questions %}
-                <span class="followup-question" onclick="fillTopic('{{ question|e }}')" tabindex="0" role="button" 
-                      aria-label="Ask: {{ question|e }}">❓ {{ question }}</span>
+                <div class="topic-card" onclick="fillTopic('{{ question|e }}')" tabindex="0" role="button">
+                    {{ question }}
+                </div>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
-        
+
         {% if related_topics and 'Error:' not in result %}
-        <div class="recommendations">
-            <h3>🔗 Related Topics to Explore</h3>
-            <div class="suggestions-grid">
+        <div class="suggestions-section">
+            <h3 class="suggestions-title">Related Topics</h3>
+            <div class="topics-grid">
                 {% for topic in related_topics %}
-                <span class="topic-suggestion" onclick="fillTopic('{{ topic|e }}')" tabindex="0" role="button" 
-                      aria-label="Explore {{ topic|e }}">{{ topic }}</span>
+                <div class="topic-card" onclick="fillTopic('{{ topic|e }}')" tabindex="0" role="button">
+                    {{ topic }}
+                </div>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
         {% endif %}
     </div>
-    
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p class="loading-text">Crafting your personalized explanation...</p>
+        </div>
+    </div>
+
     <script>
         function fillTopic(topic) {
             document.getElementById('topic').value = topic;
             document.getElementById('topic').focus();
-            // Scroll to form
-            document.getElementById('explainForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        
+
         function showLoading() {
-            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingOverlay').style.display = 'flex';
             document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').textContent = 'Generating...';
         }
-        
-        // Add keyboard support for interactive elements
+
+        // Handle radio card selection visual feedback
+        document.querySelectorAll('input[name="explanation_type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.radio-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                this.closest('.radio-card').classList.add('selected');
+            });
+        });
+
+        // Initialize selected state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkedRadio = document.querySelector('input[name="explanation_type"]:checked');
+            if (checkedRadio) {
+                checkedRadio.closest('.radio-card').classList.add('selected');
+            }
+
+            // Clean up result content
+            const resultContent = document.querySelector('.result-content');
+            if (resultContent) {
+                let content = resultContent.innerHTML;
+                content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                content = content.replace(/\n\n/g, '</p><p>');
+                content = content.replace(/\n/g, '<br>');
+                resultContent.innerHTML = content;
+            }
+        });
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') {
-                if (e.target.classList.contains('topic-suggestion') || e.target.classList.contains('followup-question')) {
+                if (e.target.classList.contains('topic-card')) {
                     e.preventDefault();
                     e.target.click();
                 }
             }
         });
-        
-        // Form validation
+
         document.getElementById('explainForm').addEventListener('submit', function(e) {
             const topic = document.getElementById('topic').value.trim();
             if (!topic) {
@@ -597,12 +786,12 @@ HTML_TEMPLATE = '''
                 alert('Topic is too long. Please keep it under 200 characters.');
                 return false;
             }
+            showLoading();
         });
     </script>
 </body>
 </html>
 '''
-
 @app.route("/", methods=["GET", "POST"])
 @rate_limit(config.RATE_LIMIT_REQUESTS)
 def explain():

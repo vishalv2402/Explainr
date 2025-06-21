@@ -1,3 +1,4 @@
+Latest Working Code as of 21-02-2025:
 from flask import Flask, request, render_template_string, make_response, jsonify
 import openai
 import os

@@ -641,7 +641,7 @@ HTML_TEMPLATE = '''
         <div class="header">
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="/attached_assets/ChatGPT Image Jun 24, 2025, 10_10_29 AM_1750762921871.png" alt="Explainr Logo" style="width: 419px; height: auto; max-height: 210px; object-fit: contain;">
+                    <img src="/logo.png" alt="Explainr Logo" style="width: 419px; height: auto; max-height: 210px; object-fit: contain;">
                 </div>
             </div>
             <p class="tagline">Transform complex concepts into crystal-clear understanding!</p>

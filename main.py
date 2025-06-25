@@ -126,7 +126,7 @@ def sanitize_input(text: str) -> str:
 def make_openai_request(messages: List[Dict], max_retries: int = 3) -> Optional[str]:
     """Make OpenAI API request with error handling and retries"""
     if not config.OPENAI_API_KEY or config.OPENAI_API_KEY == 'your-api-key-here':
-        return "OpenAI API key not configured. Please set the ExplainrOpenAIKey environment variable."
+        return "OpenAI API key not configured. Please set the OPENAI_API_KEY environment variable."
 
     for attempt in range(max_retries):
         try:
